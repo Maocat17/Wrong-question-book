@@ -2,14 +2,20 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>專業圖片排版工具 Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Wrong question editor</title>
     <style>
         :root { --primary-color: #17a2b8; --bg-color: #f8f9fa; --border-radius: 50px; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-color); padding: 40px 20px; color: #333; }
-        .container { max-width: 650px; margin: 0 auto; }
-        h2 { text-align: center; font-weight: 300; letter-spacing: 2px; margin-bottom: 20px; font-size: 1.5rem; }
+        
+        /* 防止選取文字與系統反白 */
+        * { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        input, textarea { user-select: text; -webkit-user-select: text; }
 
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-color); padding: 20px; color: #333; margin: 0; overflow-x: hidden; }
+        .container { max-width: 650px; margin: 0 auto; }
+        h2 { text-align: center; font-weight: 300; letter-spacing: 2px; margin: 20px 0; font-size: 1.5rem; }
+
+        /* 工具列 */
         .action-bar { display: flex; gap: 10px; margin-bottom: 20px; }
         .btn-base {
             background: #fff; border: 2px solid #000; border-radius: 12px; 
@@ -17,48 +23,57 @@
             display: flex; align-items: center; justify-content: center; gap: 8px;
             font-weight: bold; flex: 1; font-size: 14px;
         }
-        .btn-base:hover { background: #f0fbfc; border-color: var(--primary-color); }
         #nextBtn { background: #000; color: #fff; }
-        #resetBtn { background: #fff; color: #ff4d4d; border-color: #ff4d4d; flex: 0.4; }
+        #resetBtn { color: #ff4d4d; border-color: #ff4d4d; flex: 0.4; }
 
+        /* 下載區域 */
         .final-actions { display: none; margin-bottom: 30px; padding: 25px; border: 3px solid #000; border-radius: 20px; background: #fff; }
-        #fileNameInput { width: 100%; padding: 12px; border: 2px solid #000; border-radius: 10px; margin: 10px 0 20px 0; box-sizing: border-box; font-weight: bold; }
+        #fileNameInput { width: 100%; padding: 12px; border: 2px solid #000; border-radius: 10px; margin: 10px 0 15px 0; font-weight: bold; }
+        .download-btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .dl-pill { 
+            background: #f0f0f0; border: 2px solid #000; border-radius: 30px; 
+            padding: 8px 12px; font-size: 12px; font-weight: bold; cursor: pointer;
+            transition: 0.2s; flex: 1 1 calc(33.3% - 8px); text-align: center; min-width: 80px;
+        }
 
+        /* 檔案清單樣式 */
         #file-list { display: flex; flex-direction: column; gap: 12px; }
         .file-item {
             display: flex; align-items: center; background: #fff; padding: 8px 20px;
             border: 2px solid #000; border-radius: var(--border-radius);
-            cursor: grab; transition: transform 0.2s; position: relative;
+            position: relative; will-change: transform, background-color;
+            transition: background-color 0.2s;
         }
-        .file-item:active { cursor: grabbing; }
-        .drag-handle { margin-right: 15px; color: #999; display: flex; flex-direction: column; gap: 2px; }
-        .drag-handle div { width: 15px; height: 2px; background: #999; border-radius: 2px; }
         
-        .file-index { width: 28px; height: 28px; background-color: var(--primary-color); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: italic; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 13px; }
+        /* 拖曳視覺回饋 */
+        .file-item.dragging { opacity: 0.3; background-color: #eee !important; border-style: dashed; }
+        .file-item.drag-over { background-color: #dee2e6 !important; border-width: 3px; transform: scale(1.02); }
+
+        .drag-handle { padding: 10px 15px 10px 0; color: #999; display: flex; flex-direction: column; gap: 3px; cursor: move; touch-action: none; }
+        .drag-handle div { width: 18px; height: 2px; background: #000; border-radius: 2px; }
         
+        .file-index { width: 28px; height: 28px; background-color: var(--primary-color); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: italic; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 11px; }
         .preview-wrapper { width: 45px; height: 32px; background: #eee; border-radius: 6px; margin-right: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #ddd; }
-        .preview-img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
-        
-        .file-name { flex-grow: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; font-size: 15px; font-weight: bold; }
-        .remove-btn { background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
+        .preview-img { width: 100%; height: 100%; object-fit: cover; }
+        .file-name { flex-grow: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; font-size: 14px; font-weight: bold; }
+        .remove-btn { background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 
+        /* 彈窗與放大 */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background: #fff; padding: 30px; border-radius: 20px; width: 90%; max-width: 450px; border: 3px solid #000; }
-
-        #zoomOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; cursor: zoom-out; }
+        .modal-content { background: #fff; padding: 30px; border-radius: 20px; width: 85%; max-width: 400px; border: 3px solid #000; }
+        #zoomOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; }
         #zoomOverlay img { max-width: 90%; max-height: 90%; border: 4px solid #fff; border-radius: 10px; }
 
         .config-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .config-input-group label { flex: 1; font-weight: bold; font-size: 14px; }
-        .pretty-input { width: 80px; padding: 8px; border: 2px solid #000; border-radius: 10px; font-weight: bold; text-align: center; }
-        .pretty-select { border: 2px solid #000; padding: 8px; border-radius: 10px; font-weight: bold; }
-        #limitHint { font-size: 11px; color: #666; font-weight: bold; }
+        .pretty-input { width: 70px; padding: 8px; border: 2px solid #000; border-radius: 10px; text-align: center; font-weight: bold; }
+        #limitHint { font-size: 11px; color: #666; font-weight: bold; margin-bottom: 15px; text-align: right; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>IMAGE EXPORT Pro</h2>
+    <h2>錯題本 圖片合輯製作器</h2>
     
     <div class="action-bar">
         <div class="btn-base" onclick="document.getElementById('fileInput').click()">🖼️ 上傳圖片<input type="file" id="fileInput" multiple accept="image/*" style="display:none"></div>
@@ -67,10 +82,18 @@
     </div>
 
     <div class="final-actions" id="downloadArea">
-        <h3 style="text-align:center; margin-top:0;">✨ 排版處理完成</h3>
+        <h3 style="text-align:center; margin:0 0 10px 0;">✨ 排版已完成</h3>
+        <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 15px;">iOS 若點擊一鍵下載無反應，請改用分頁按鈕</p>
+        
         <label>檔案命名：</label>
         <input type="text" id="fileNameInput">
-        <button class="btn-base" style="background:#000; color:#fff; width:100%;" onclick="exportImages()">🖼️ 匯出合併圖檔</button>
+        
+        <button id="downloadAllBtn" class="btn-base" style="background:#000; color:#fff; width:100%; margin-bottom: 15px;" onclick="downloadAll()">📥 一鍵下載所有圖片</button>
+        
+        <div style="border-top: 1px solid #eee; padding-top: 15px;">
+            <label style="font-size: 13px; color: #888;">分頁下載 (保險方案)：</label>
+            <div class="download-btn-group" id="downloadButtons"></div>
+        </div>
     </div>
 
     <div id="file-list"></div>
@@ -78,10 +101,10 @@
 
 <div id="configModal" class="modal">
     <div class="modal-content">
-        <h3 style="margin-top:0">排版與留白設定</h3>
+        <h3 style="margin-top:0">排版設定</h3>
         <div class="config-input-group">
             <label>紙張大小</label>
-            <select id="paperSize" class="pretty-select" onchange="updateLimits()">
+            <select id="paperSize" style="border:2px solid #000; padding:8px; border-radius:10px; font-weight:bold; background:white;">
                 <option value="a4">A4</option><option value="a3">A3</option><option value="b4">B4</option><option value="b5">B5</option>
             </select>
         </div>
@@ -96,16 +119,22 @@
 
 <script>
     let imageArray = [];
+    let generatedImages = [];
     const paperSpecs = { a4: { w: 210, h: 297 }, a3: { w: 297, h: 420 }, b4: { w: 250, h: 353 }, b5: { w: 176, h: 250 } };
 
-    function resetApp() { if(confirm("確定重設？")) { imageArray = []; renderList(); document.getElementById('downloadArea').style.display='none'; } }
+    function resetApp() { if(confirm("確定重設？")) { imageArray = []; renderList(); hideDownloadArea(); } }
+    function hideDownloadArea() { document.getElementById('downloadArea').style.display = 'none'; }
 
     document.getElementById('fileInput').onchange = (e) => {
         Array.from(e.target.files).forEach(file => {
             const reader = new FileReader();
-            reader.onload = (ev) => { imageArray.push({ type: 'image', name: file.name, src: ev.target.result }); renderList(); };
+            reader.onload = (ev) => { 
+                imageArray.push({ name: file.name, src: ev.target.result }); 
+                renderList(); hideDownloadArea();
+            };
             reader.readAsDataURL(file);
         });
+        e.target.value = "";
     };
 
     function renderList() {
@@ -114,86 +143,133 @@
         imageArray.forEach((item, i) => {
             const div = document.createElement('div');
             div.className = 'file-item';
-            div.draggable = true;
             div.dataset.index = i;
-            div.ondragstart = (e) => { e.dataTransfer.setData('text/plain', i); div.style.opacity = '0.5'; };
-            div.ondragover = (e) => e.preventDefault();
-            div.ondrop = (e) => {
-                const from = e.dataTransfer.getData('text/plain');
-                const to = i;
-                const temp = imageArray.splice(from, 1)[0];
-                imageArray.splice(to, 0, temp);
-                renderList();
-            };
-            div.ondragend = () => div.style.opacity = '1';
-
             div.innerHTML = `
                 <div class="drag-handle"><div></div><div></div><div></div></div>
                 <div class="file-index">${i + 1}</div>
                 <div class="preview-wrapper"><img src="${item.src}" class="preview-img" onclick="zoom(event, '${item.src}')"></div>
                 <div class="file-name">${item.name}</div>
-                <button class="remove-btn" onclick="imageArray.splice(${i},1); renderList();">✕</button>`;
+                <button class="remove-btn" onclick="removeItem(${i})">✕</button>`;
+            setupSortable(div);
             list.appendChild(div);
         });
         document.getElementById('nextBtn').disabled = imageArray.length === 0;
     }
 
-    function zoom(e, src) { e.stopPropagation(); document.getElementById('zoomImg').src = src; document.getElementById('zoomOverlay').style.display = 'flex'; }
+    function removeItem(index) { imageArray.splice(index, 1); renderList(); hideDownloadArea(); }
 
-    document.getElementById('nextBtn').onclick = () => { document.getElementById('configModal').style.display = 'flex'; updateLimits(); };
-    function updateLimits() {
-        const spec = paperSpecs[document.getElementById('paperSize').value];
-        document.getElementById('limitHint').innerText = `* 上限：上下 ${(spec.h*0.09/10).toFixed(1)}cm / 左右 ${(spec.w*0.15/10).toFixed(1)}cm`;
+    // --- 高性能拖曳排序 (iOS 支援) ---
+    let dragSrcIndex = null, currentOverIndex = null;
+    function setupSortable(el) {
+        const handle = el.querySelector('.drag-handle');
+        
+        const startDrag = () => { dragSrcIndex = parseInt(el.dataset.index); el.classList.add('dragging'); };
+        const endDrag = () => { 
+            if (dragSrcIndex !== null && currentOverIndex !== null && dragSrcIndex !== currentOverIndex) {
+                const temp = imageArray.splice(dragSrcIndex, 1)[0];
+                imageArray.splice(currentOverIndex, 0, temp);
+                renderList(); hideDownloadArea();
+            }
+            el.classList.remove('dragging');
+            document.querySelectorAll('.file-item').forEach(item => item.classList.remove('drag-over'));
+            dragSrcIndex = currentOverIndex = null;
+        };
+
+        handle.ontouchstart = startDrag;
+        el.ontouchmove = (e) => {
+            if (dragSrcIndex === null) return;
+            const touch = e.touches[0];
+            const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+            const targetItem = targetEl?.closest('.file-item');
+            document.querySelectorAll('.file-item').forEach(item => item.classList.remove('drag-over'));
+            if (targetItem && targetItem !== el) {
+                targetItem.classList.add('drag-over');
+                currentOverIndex = parseInt(targetItem.dataset.index);
+            }
+            e.preventDefault();
+        };
+        el.ontouchend = endDrag;
+
+        el.draggable = true;
+        el.ondragstart = startDrag;
+        el.ondragover = (e) => {
+            e.preventDefault();
+            const targetItem = e.target.closest('.file-item');
+            if (targetItem) targetItem.classList.add('drag-over');
+        };
+        el.ondragleave = (e) => {
+            const targetItem = e.target.closest('.file-item');
+            if (targetItem) targetItem.classList.remove('drag-over');
+        };
+        el.ondrop = (e) => { currentOverIndex = parseInt(el.dataset.index); };
+        el.ondragend = endDrag;
     }
 
-    let generatedCanvases = [];
+    function zoom(e, src) { e.stopPropagation(); document.getElementById('zoomImg').src = src; document.getElementById('zoomOverlay').style.display = 'flex'; }
+    document.getElementById('nextBtn').onclick = () => { document.getElementById('configModal').style.display = 'flex'; };
+
+    // --- 排版處理與下載 ---
     async function startProcessing() {
         const spec = paperSpecs[document.getElementById('paperSize').value];
         const vM = parseFloat(document.getElementById('vMargin').value) * 10;
         const hM = parseFloat(document.getElementById('hMargin').value) * 10;
         const gap = 3, drawWidth = spec.w - (hM * 2), pageBottom = spec.h - vM;
         
-        generatedCanvases = [];
-        let canvas = createPaper(spec), ctx = canvas.getContext('2d'), currentY = vM;
+        generatedImages = [];
+        let canvas = document.createElement('canvas');
+        const setupCanvas = (c) => {
+            c.width = (spec.w / 25.4) * 300; c.height = (spec.h / 25.4) * 300;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
+            ctx.scale(c.width/spec.w, c.width/spec.w);
+            return ctx;
+        };
+
+        let ctx = setupCanvas(canvas), currentY = vM;
 
         for (const item of imageArray) {
             const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.src = item.src; });
             const itemH = drawWidth * (img.height / img.width);
-            
             if (currentY + itemH > pageBottom && currentY > vM) { 
-                generatedCanvases.push(canvas); 
-                canvas = createPaper(spec); 
-                ctx = canvas.getContext('2d'); 
-                currentY = vM; 
+                generatedImages.push(canvas.toDataURL('image/jpeg', 0.9));
+                canvas = document.createElement('canvas'); ctx = setupCanvas(canvas); currentY = vM; 
             }
-            
             ctx.drawImage(img, hM, currentY, drawWidth, itemH);
             currentY += itemH + gap;
         }
-        generatedCanvases.push(canvas);
+        generatedImages.push(canvas.toDataURL('image/jpeg', 0.9));
+        
+        const btnContainer = document.getElementById('downloadButtons');
+        btnContainer.innerHTML = '';
+        generatedImages.forEach((data, i) => {
+            const btn = document.createElement('div');
+            btn.className = 'dl-pill';
+            btn.innerText = `第 ${i+1} 頁`;
+            btn.onclick = () => {
+                const a = document.createElement('a');
+                a.download = `${document.getElementById('fileNameInput').value || '匯出'}_${i+1}.jpg`;
+                a.href = data; a.click();
+            };
+            btnContainer.appendChild(btn);
+        });
+
         document.getElementById('configModal').style.display = 'none';
         document.getElementById('downloadArea').style.display = 'block';
         document.getElementById('fileNameInput').value = "合併圖片匯出";
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function createPaper(spec) {
-        const c = document.createElement('canvas');
-        c.width = (spec.w / 25.4) * 300; c.height = (spec.h / 25.4) * 300;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
-        ctx.scale(c.width/spec.w, c.width/spec.w);
-        return c;
-    }
-
-    function exportImages() {
-        const name = document.getElementById('fileNameInput').value;
-        generatedCanvases.forEach((c, i) => {
+    async function downloadAll() {
+        const name = document.getElementById('fileNameInput').value || '匯出';
+        for (let i = 0; i < generatedImages.length; i++) {
             const a = document.createElement('a');
             a.download = `${name}_${i+1}.jpg`;
-            a.href = c.toDataURL('image/jpeg', 0.9);
+            a.href = generatedImages[i];
+            document.body.appendChild(a);
             a.click();
-        });
+            document.body.removeChild(a);
+            await new Promise(res => setTimeout(res, 400)); // iOS 必要延遲
+        }
     }
 </script>
 </body>
