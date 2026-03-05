@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>專業圖片排版工具 Pro</title>
+    <style>
+        :root { --primary-color: #17a2b8; --bg-color: #f8f9fa; --border-radius: 50px; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-color); padding: 40px 20px; color: #333; }
+        .container { max-width: 650px; margin: 0 auto; }
+        h2 { text-align: center; font-weight: 300; letter-spacing: 2px; margin-bottom: 20px; font-size: 1.5rem; }
+
+        .action-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn-base {
+            background: #fff; border: 2px solid #000; border-radius: 12px; 
+            padding: 12px; cursor: pointer; transition: 0.2s; 
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-weight: bold; flex: 1; font-size: 14px;
+        }
+        .btn-base:hover { background: #f0fbfc; border-color: var(--primary-color); }
+        #nextBtn { background: #000; color: #fff; }
+        #resetBtn { background: #fff; color: #ff4d4d; border-color: #ff4d4d; flex: 0.4; }
+
+        .final-actions { display: none; margin-bottom: 30px; padding: 25px; border: 3px solid #000; border-radius: 20px; background: #fff; }
+        #fileNameInput { width: 100%; padding: 12px; border: 2px solid #000; border-radius: 10px; margin: 10px 0 20px 0; box-sizing: border-box; font-weight: bold; }
+
+        #file-list { display: flex; flex-direction: column; gap: 12px; }
+        .file-item {
+            display: flex; align-items: center; background: #fff; padding: 8px 20px;
+            border: 2px solid #000; border-radius: var(--border-radius);
+            cursor: grab; transition: transform 0.2s; position: relative;
+        }
+        .file-item:active { cursor: grabbing; }
+        .drag-handle { margin-right: 15px; color: #999; display: flex; flex-direction: column; gap: 2px; }
+        .drag-handle div { width: 15px; height: 2px; background: #999; border-radius: 2px; }
+        
+        .file-index { width: 28px; height: 28px; background-color: var(--primary-color); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: italic; font-weight: bold; margin-right: 12px; flex-shrink: 0; font-size: 13px; }
+        
+        .preview-wrapper { width: 45px; height: 32px; background: #eee; border-radius: 6px; margin-right: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #ddd; }
+        .preview-img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+        
+        .file-name { flex-grow: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; font-size: 15px; font-weight: bold; }
+        .remove-btn { background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; padding: 30px; border-radius: 20px; width: 90%; max-width: 450px; border: 3px solid #000; }
+
+        #zoomOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; cursor: zoom-out; }
+        #zoomOverlay img { max-width: 90%; max-height: 90%; border: 4px solid #fff; border-radius: 10px; }
+
+        .config-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .config-input-group label { flex: 1; font-weight: bold; font-size: 14px; }
+        .pretty-input { width: 80px; padding: 8px; border: 2px solid #000; border-radius: 10px; font-weight: bold; text-align: center; }
+        .pretty-select { border: 2px solid #000; padding: 8px; border-radius: 10px; font-weight: bold; }
+        #limitHint { font-size: 11px; color: #666; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>IMAGE EXPORT Pro</h2>
+    
+    <div class="action-bar">
+        <div class="btn-base" onclick="document.getElementById('fileInput').click()">🖼️ 上傳圖片<input type="file" id="fileInput" multiple accept="image/*" style="display:none"></div>
+        <button id="resetBtn" class="btn-base" onclick="resetApp()">重設</button>
+        <button id="nextBtn" class="btn-base" disabled>下一步 ➔</button>
+    </div>
+
+    <div class="final-actions" id="downloadArea">
+        <h3 style="text-align:center; margin-top:0;">✨ 排版處理完成</h3>
+        <label>檔案命名：</label>
+        <input type="text" id="fileNameInput">
+        <button class="btn-base" style="background:#000; color:#fff; width:100%;" onclick="exportImages()">🖼️ 匯出合併圖檔</button>
+    </div>
+
+    <div id="file-list"></div>
+</div>
+
+<div id="configModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0">排版與留白設定</h3>
+        <div class="config-input-group">
+            <label>紙張大小</label>
+            <select id="paperSize" class="pretty-select" onchange="updateLimits()">
+                <option value="a4">A4</option><option value="a3">A3</option><option value="b4">B4</option><option value="b5">B5</option>
+            </select>
+        </div>
+        <div class="config-input-group"><label>上下留白 (cm)</label><input type="number" id="vMargin" class="pretty-input" value="1.0" step="0.1"></div>
+        <div class="config-input-group"><label>左右留白 (cm)</label><input type="number" id="hMargin" class="pretty-input" value="1.0" step="0.1"></div>
+        <p id="limitHint"></p>
+        <button class="btn-base" style="background:#000; color:#fff; width:100%;" onclick="startProcessing()">開始合併排版 ➔</button>
+    </div>
+</div>
+
+<div id="zoomOverlay" onclick="this.style.display='none'"><img id="zoomImg"></div>
+
+<script>
+    let imageArray = [];
+    const paperSpecs = { a4: { w: 210, h: 297 }, a3: { w: 297, h: 420 }, b4: { w: 250, h: 353 }, b5: { w: 176, h: 250 } };
+
+    function resetApp() { if(confirm("確定重設？")) { imageArray = []; renderList(); document.getElementById('downloadArea').style.display='none'; } }
+
+    document.getElementById('fileInput').onchange = (e) => {
+        Array.from(e.target.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (ev) => { imageArray.push({ type: 'image', name: file.name, src: ev.target.result }); renderList(); };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    function renderList() {
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        imageArray.forEach((item, i) => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.draggable = true;
+            div.dataset.index = i;
+            div.ondragstart = (e) => { e.dataTransfer.setData('text/plain', i); div.style.opacity = '0.5'; };
+            div.ondragover = (e) => e.preventDefault();
+            div.ondrop = (e) => {
+                const from = e.dataTransfer.getData('text/plain');
+                const to = i;
+                const temp = imageArray.splice(from, 1)[0];
+                imageArray.splice(to, 0, temp);
+                renderList();
+            };
+            div.ondragend = () => div.style.opacity = '1';
+
+            div.innerHTML = `
+                <div class="drag-handle"><div></div><div></div><div></div></div>
+                <div class="file-index">${i + 1}</div>
+                <div class="preview-wrapper"><img src="${item.src}" class="preview-img" onclick="zoom(event, '${item.src}')"></div>
+                <div class="file-name">${item.name}</div>
+                <button class="remove-btn" onclick="imageArray.splice(${i},1); renderList();">✕</button>`;
+            list.appendChild(div);
+        });
+        document.getElementById('nextBtn').disabled = imageArray.length === 0;
+    }
+
+    function zoom(e, src) { e.stopPropagation(); document.getElementById('zoomImg').src = src; document.getElementById('zoomOverlay').style.display = 'flex'; }
+
+    document.getElementById('nextBtn').onclick = () => { document.getElementById('configModal').style.display = 'flex'; updateLimits(); };
+    function updateLimits() {
+        const spec = paperSpecs[document.getElementById('paperSize').value];
+        document.getElementById('limitHint').innerText = `* 上限：上下 ${(spec.h*0.09/10).toFixed(1)}cm / 左右 ${(spec.w*0.15/10).toFixed(1)}cm`;
+    }
+
+    let generatedCanvases = [];
+    async function startProcessing() {
+        const spec = paperSpecs[document.getElementById('paperSize').value];
+        const vM = parseFloat(document.getElementById('vMargin').value) * 10;
+        const hM = parseFloat(document.getElementById('hMargin').value) * 10;
+        const gap = 3, drawWidth = spec.w - (hM * 2), pageBottom = spec.h - vM;
+        
+        generatedCanvases = [];
+        let canvas = createPaper(spec), ctx = canvas.getContext('2d'), currentY = vM;
+
+        for (const item of imageArray) {
+            const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.src = item.src; });
+            const itemH = drawWidth * (img.height / img.width);
+            
+            if (currentY + itemH > pageBottom && currentY > vM) { 
+                generatedCanvases.push(canvas); 
+                canvas = createPaper(spec); 
+                ctx = canvas.getContext('2d'); 
+                currentY = vM; 
+            }
+            
+            ctx.drawImage(img, hM, currentY, drawWidth, itemH);
+            currentY += itemH + gap;
+        }
+        generatedCanvases.push(canvas);
+        document.getElementById('configModal').style.display = 'none';
+        document.getElementById('downloadArea').style.display = 'block';
+        document.getElementById('fileNameInput').value = "合併圖片匯出";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function createPaper(spec) {
+        const c = document.createElement('canvas');
+        c.width = (spec.w / 25.4) * 300; c.height = (spec.h / 25.4) * 300;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
+        ctx.scale(c.width/spec.w, c.width/spec.w);
+        return c;
+    }
+
+    function exportImages() {
+        const name = document.getElementById('fileNameInput').value;
+        generatedCanvases.forEach((c, i) => {
+            const a = document.createElement('a');
+            a.download = `${name}_${i+1}.jpg`;
+            a.href = c.toDataURL('image/jpeg', 0.9);
+            a.click();
+        });
+    }
+</script>
+</body>
+</html>
