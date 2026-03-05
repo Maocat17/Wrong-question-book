@@ -122,7 +122,7 @@
     let generatedImages = [];
     const paperSpecs = { a4: { w: 210, h: 297 }, a3: { w: 297, h: 420 }, b4: { w: 250, h: 353 }, b5: { w: 176, h: 250 } };
 
-    function resetApp() { if(confirm("確定重設？")) { imageArray = []; renderList(); hideDownloadArea(); } }
+    function resetApp() { if(confirm("是否確定全部清除重設？")) { imageArray = []; renderList(); hideDownloadArea(); } }
     function hideDownloadArea() { document.getElementById('downloadArea').style.display = 'none'; }
 
     document.getElementById('fileInput').onchange = (e) => {
