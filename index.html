@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Wrong question editor</title>
+    <title>IMAGE EXPORT Pro - 終極整合版</title>
     <style>
         :root { --primary-color: #17a2b8; --bg-color: #f8f9fa; --border-radius: 50px; }
         
@@ -32,8 +32,8 @@
         .download-btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
         .dl-pill { 
             background: #f0f0f0; border: 2px solid #000; border-radius: 30px; 
-            padding: 8px 12px; font-size: 12px; font-weight: bold; cursor: pointer;
-            transition: 0.2s; flex: 1 1 calc(33.3% - 8px); text-align: center; min-width: 80px;
+            padding: 6px 10px; font-size: 11px; font-weight: bold; cursor: pointer;
+            transition: 0.2s; flex: 1 1 calc(24% - 8px); text-align: center; min-width: 65px;
         }
 
         /* 檔案清單樣式 */
@@ -44,6 +44,7 @@
             position: relative; will-change: transform, background-color;
             transition: background-color 0.2s;
         }
+        .file-item.page-break { background: #fff9e6; border-color: #ffc107; }
         
         /* 拖曳視覺回饋 */
         .file-item.dragging { opacity: 0.3; background-color: #eee !important; border-style: dashed; }
@@ -68,17 +69,108 @@
         .config-input-group label { flex: 1; font-weight: bold; font-size: 14px; }
         .pretty-input { width: 70px; padding: 8px; border: 2px solid #000; border-radius: 10px; text-align: center; font-weight: bold; }
         #limitHint { font-size: 11px; color: #666; font-weight: bold; margin-bottom: 15px; text-align: right; }
+
+        /* 合併詳細資料 - Pinterest 風格兩欄並排卡片 */
+        #detailSection summary {
+            font-size: 1.2rem; font-weight: bold; text-align: center; padding: 12px; cursor: pointer; list-style: none;
+        }
+        #pageDetails {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 14px;
+            margin-top: 15px;
+        }
+        .page-block {
+            border: 2px solid #000;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+        }
+        .page-header {
+            background: #000; 
+            color: #fff; 
+            padding: 9px 15px; 
+            font-weight: bold; 
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .page-header button {
+            background: rgba(255,255,255,0.25);
+            color: white;
+            border: none;
+            border-radius: 9999px;
+            padding: 3px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: 0.2s;
+        }
+        .page-header button:hover {
+            background: rgba(255,255,255,0.4);
+        }
+        .files-compact {
+            padding: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 12.5px;
+        }
+        .file-pill {
+            background: #f8f9fa;
+            border: 1px solid #ccc;
+            border-radius: 9999px;
+            padding: 4px 11px;
+            font-size: 12px;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 115px;
+            flex: 0 1 auto;
+        }
+
+        /* 排序選單 */
+        #sortBar {
+            display: none;
+            margin-bottom: 15px;
+            padding: 12px 20px;
+            background: #fff;
+            border: 2px solid #000;
+            border-radius: 12px;
+            align-items: center;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>錯題本 圖片合輯製作器</h2>
+    <h2>IMAGE EXPORT Pro</h2>
     
     <div class="action-bar">
         <div class="btn-base" onclick="document.getElementById('fileInput').click()">🖼️ 上傳圖片<input type="file" id="fileInput" multiple accept="image/*" style="display:none"></div>
+        <div class="btn-base" onclick="addPageBreak()">📄 換頁</div>
         <button id="resetBtn" class="btn-base" onclick="resetApp()">重設</button>
         <button id="nextBtn" class="btn-base" disabled>下一步 ➔</button>
+    </div>
+
+    <!-- 新增：排序選單（有檔案時顯示） -->
+    <div id="sortBar">
+        <span style="font-weight:bold; white-space:nowrap;">排序方式：</span>
+        <select id="sortSelect" style="flex:1; padding:8px; border:2px solid #000; border-radius:10px; font-weight:bold; background:white;" onchange="applySort()">
+            <option value="upload">按上傳順序排序</option>
+            <option value="name">按檔案名稱排序</option>
+        </select>
     </div>
 
     <div class="final-actions" id="downloadArea">
@@ -95,6 +187,12 @@
             <div class="download-btn-group" id="downloadButtons"></div>
         </div>
     </div>
+
+    <!-- 折疊的合併詳細資料欄位 -->
+    <details id="detailSection" style="display:none; margin-bottom:30px; padding:25px; border:3px solid #000; border-radius:20px; background:#fff;">
+        <summary>📋 合併詳細資料（點擊展開）</summary>
+        <div id="pageDetails"></div>
+    </details>
 
     <div id="file-list"></div>
 </div>
@@ -120,17 +218,70 @@
 <script>
     let imageArray = [];
     let generatedImages = [];
+    let pageGroups = [];
+    let uploadCounter = 0;
     const paperSpecs = { a4: { w: 210, h: 297 }, a3: { w: 297, h: 420 }, b4: { w: 250, h: 353 }, b5: { w: 176, h: 250 } };
 
-    function resetApp() { if(confirm("是否確定全部清除重設？")) { imageArray = []; renderList(); hideDownloadArea(); } }
-    function hideDownloadArea() { document.getElementById('downloadArea').style.display = 'none'; }
+    // 自然排序（連續數字視為一個數字，支援中文、英文、符號）
+    function naturalSort(a, b) {
+        if (a === b) return 0;
+        const aParts = a.match(/(\d+|\D+)/g) || [];
+        const bParts = b.match(/(\d+|\D+)/g) || [];
+        const len = Math.max(aParts.length, bParts.length);
+        for (let i = 0; i < len; i++) {
+            let aa = aParts[i] || '';
+            let bb = bParts[i] || '';
+            const numA = parseFloat(aa);
+            const numB = parseFloat(bb);
+            if (!isNaN(numA) && !isNaN(numB)) {
+                if (numA !== numB) return numA - numB;
+            } else if (aa !== bb) {
+                return aa.localeCompare(bb, 'zh-TW', { numeric: false, sensitivity: 'base' });
+            }
+        }
+        return 0;
+    }
+
+    function resetApp() { 
+        if(confirm("確定重設？")) { 
+            imageArray = []; 
+            pageGroups = []; 
+            generatedImages = []; 
+            uploadCounter = 0;
+            renderList(); 
+            hideDownloadArea(); 
+        } 
+    }
+    function hideDownloadArea() { 
+        document.getElementById('downloadArea').style.display = 'none'; 
+        const detailSection = document.getElementById('detailSection');
+        if (detailSection) detailSection.style.display = 'none';
+    }
+
+    // 新增強制換頁
+    function addPageBreak() {
+        imageArray.push({
+            name: '--- 強制換頁 ---',
+            src: '',
+            isPageBreak: true,
+            uploadIndex: uploadCounter++
+        });
+        renderList();
+        hideDownloadArea();
+    }
 
     document.getElementById('fileInput').onchange = (e) => {
         Array.from(e.target.files).forEach(file => {
             const reader = new FileReader();
             reader.onload = (ev) => { 
-                imageArray.push({ name: file.name, src: ev.target.result }); 
-                renderList(); hideDownloadArea();
+                imageArray.push({ 
+                    name: file.name, 
+                    src: ev.target.result,
+                    isPageBreak: false,
+                    uploadIndex: uploadCounter++
+                }); 
+                renderList(); 
+                hideDownloadArea();
             };
             reader.readAsDataURL(file);
         });
@@ -142,17 +293,32 @@
         list.innerHTML = '';
         imageArray.forEach((item, i) => {
             const div = document.createElement('div');
-            div.className = 'file-item';
+            div.className = `file-item ${item.isPageBreak ? 'page-break' : ''}`;
             div.dataset.index = i;
-            div.innerHTML = `
-                <div class="drag-handle"><div></div><div></div><div></div></div>
-                <div class="file-index">${i + 1}</div>
-                <div class="preview-wrapper"><img src="${item.src}" class="preview-img" onclick="zoom(event, '${item.src}')"></div>
-                <div class="file-name">${item.name}</div>
-                <button class="remove-btn" onclick="removeItem(${i})">✕</button>`;
+
+            if (item.isPageBreak) {
+                div.innerHTML = `
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                    <div class="file-index">${i + 1}</div>
+                    <div class="preview-wrapper" style="background:#ffeaa7;border-color:#ffc107;color:#d32f2f;font-size:22px;">📄</div>
+                    <div class="file-name" style="color:#e63939;white-space:normal;font-style:italic;">強制換頁</div>
+                    <button class="remove-btn" onclick="removeItem(${i})">✕</button>`;
+            } else {
+                div.innerHTML = `
+                    <div class="drag-handle"><div></div><div></div><div></div></div>
+                    <div class="file-index">${i + 1}</div>
+                    <div class="preview-wrapper"><img src="${item.src}" class="preview-img" onclick="zoom(event, '${item.src}')"></div>
+                    <div class="file-name">${item.name}</div>
+                    <button class="remove-btn" onclick="removeItem(${i})">✕</button>`;
+            }
             setupSortable(div);
             list.appendChild(div);
         });
+
+        // 顯示/隱藏排序選單
+        const sortBar = document.getElementById('sortBar');
+        sortBar.style.display = imageArray.length > 0 ? 'flex' : 'none';
+
         document.getElementById('nextBtn').disabled = imageArray.length === 0;
     }
 
@@ -208,6 +374,35 @@
     function zoom(e, src) { e.stopPropagation(); document.getElementById('zoomImg').src = src; document.getElementById('zoomOverlay').style.display = 'flex'; }
     document.getElementById('nextBtn').onclick = () => { document.getElementById('configModal').style.display = 'flex'; };
 
+    // 排序功能
+    function applySort() {
+        const mode = document.getElementById('sortSelect').value;
+        if (mode === 'upload') {
+            imageArray.sort((a, b) => (a.uploadIndex || 0) - (b.uploadIndex || 0));
+        } else if (mode === 'name') {
+            imageArray.sort((a, b) => {
+                if (a.isPageBreak && b.isPageBreak) return (a.uploadIndex || 0) - (b.uploadIndex || 0);
+                if (a.isPageBreak) return -1;
+                if (b.isPageBreak) return 1;
+                return naturalSort(a.name, b.name);
+            });
+        }
+        renderList();
+        hideDownloadArea();
+    }
+
+    // 單頁下載功能
+    function downloadPage(index) {
+        if (!generatedImages[index]) return;
+        const name = document.getElementById('fileNameInput').value || '匯出';
+        const a = document.createElement('a');
+        a.download = `${name}_${index + 1}.png`;
+        a.href = generatedImages[index];
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
     // --- 排版處理與下載 ---
     async function startProcessing() {
         const spec = paperSpecs[document.getElementById('paperSize').value];
@@ -216,11 +411,15 @@
         const gap = 3, drawWidth = spec.w - (hM * 2), pageBottom = spec.h - vM;
         
         generatedImages = [];
+        pageGroups = [];
+        let currentPageGroup = [];
         let canvas = document.createElement('canvas');
         const setupCanvas = (c) => {
-            c.width = (spec.w / 25.4) * 300; c.height = (spec.h / 25.4) * 300;
+            c.width = (spec.w / 25.4) * 300; 
+            c.height = (spec.h / 25.4) * 300;
             const ctx = c.getContext('2d');
-            ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height);
+            ctx.fillStyle = '#fff'; 
+            ctx.fillRect(0,0,c.width,c.height);
             ctx.scale(c.width/spec.w, c.width/spec.w);
             return ctx;
         };
@@ -228,17 +427,46 @@
         let ctx = setupCanvas(canvas), currentY = vM;
 
         for (const item of imageArray) {
-            const img = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.src = item.src; });
+            if (item.isPageBreak) {
+                // 強制換頁
+                if (currentPageGroup.length > 0 || currentY > vM) {
+                    generatedImages.push(canvas.toDataURL('image/png'));
+                    pageGroups.push([...currentPageGroup]);
+                    canvas = document.createElement('canvas'); 
+                    ctx = setupCanvas(canvas); 
+                    currentY = vM; 
+                    currentPageGroup = [];
+                }
+                continue;
+            }
+
+            // 一般圖片
+            const img = await new Promise(res => { 
+                const i = new Image(); 
+                i.onload = () => res(i); 
+                i.src = item.src; 
+            });
             const itemH = drawWidth * (img.height / img.width);
             if (currentY + itemH > pageBottom && currentY > vM) { 
-                generatedImages.push(canvas.toDataURL('image/jpeg', 0.9));
-                canvas = document.createElement('canvas'); ctx = setupCanvas(canvas); currentY = vM; 
+                generatedImages.push(canvas.toDataURL('image/png'));
+                pageGroups.push([...currentPageGroup]);
+                canvas = document.createElement('canvas'); 
+                ctx = setupCanvas(canvas); 
+                currentY = vM; 
+                currentPageGroup = [];
             }
             ctx.drawImage(img, hM, currentY, drawWidth, itemH);
+            currentPageGroup.push(item.name);
             currentY += itemH + gap;
         }
-        generatedImages.push(canvas.toDataURL('image/jpeg', 0.9));
+
+        // 最後一頁（若有內容）
+        if (currentPageGroup.length > 0) {
+            generatedImages.push(canvas.toDataURL('image/png'));
+            pageGroups.push([...currentPageGroup]);
+        }
         
+        // 更新分頁按鈕
         const btnContainer = document.getElementById('downloadButtons');
         btnContainer.innerHTML = '';
         generatedImages.forEach((data, i) => {
@@ -247,11 +475,30 @@
             btn.innerText = `第 ${i+1} 頁`;
             btn.onclick = () => {
                 const a = document.createElement('a');
-                a.download = `${document.getElementById('fileNameInput').value || '匯出'}_${i+1}.jpg`;
-                a.href = data; a.click();
+                a.download = `${document.getElementById('fileNameInput').value || '匯出'}_${i+1}.png`;
+                a.href = data; 
+                a.click();
             };
             btnContainer.appendChild(btn);
         });
+
+        // 顯示合併詳細資料（兩欄並排 + file-pill 初始同寬、超長換行變寬）
+        const detailSection = document.getElementById('detailSection');
+        if (detailSection) {
+            detailSection.style.display = 'block';
+            const pageDetailsEl = document.getElementById('pageDetails');
+            pageDetailsEl.innerHTML = pageGroups.map((group, pageIndex) => `
+                <div class="page-block">
+                    <div class="page-header">
+                        <span>第 ${pageIndex + 1} 頁</span>
+                        <button onclick="downloadPage(${pageIndex})">📥 下載</button>
+                    </div>
+                    <div class="files-compact">
+                        ${group.map((name) => `<div class="file-pill">📄 ${name}</div>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
 
         document.getElementById('configModal').style.display = 'none';
         document.getElementById('downloadArea').style.display = 'block';
@@ -263,12 +510,12 @@
         const name = document.getElementById('fileNameInput').value || '匯出';
         for (let i = 0; i < generatedImages.length; i++) {
             const a = document.createElement('a');
-            a.download = `${name}_${i+1}.jpg`;
+            a.download = `${name}_${i+1}.png`;
             a.href = generatedImages[i];
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            await new Promise(res => setTimeout(res, 400)); // iOS 必要延遲
+            await new Promise(res => setTimeout(res, 400));
         }
     }
 </script>
