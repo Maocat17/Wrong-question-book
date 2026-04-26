@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IMAGE EXPORT Pro - 終極整合版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root { --primary-color: #17a2b8; --bg-color: #f8f9fa; --border-radius: 50px; }
         
-        /* 防止選取文字與系統反白 */
         * { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         input, textarea { user-select: text; -webkit-user-select: text; }
 
@@ -15,7 +15,6 @@
         .container { max-width: 650px; margin: 0 auto; }
         h2 { text-align: center; font-weight: 300; letter-spacing: 2px; margin: 20px 0; font-size: 1.5rem; }
 
-        /* 工具列 */
         .action-bar { display: flex; gap: 10px; margin-bottom: 20px; }
         .btn-base {
             background: #fff; border: 2px solid #000; border-radius: 12px; 
@@ -26,30 +25,26 @@
         #nextBtn { background: #000; color: #fff; }
         #resetBtn { color: #ff4d4d; border-color: #ff4d4d; flex: 0.4; }
 
-        /* 下載區域 */
         .final-actions { display: none; margin-bottom: 30px; padding: 25px; border: 3px solid #000; border-radius: 20px; background: #fff; }
         #fileNameInput { width: 100%; padding: 12px; border: 2px solid #000; border-radius: 10px; margin: 10px 0 15px 0; font-weight: bold; }
-        .download-btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .dl-pill { 
-            background: #f0f0f0; border: 2px solid #000; border-radius: 30px; 
-            padding: 6px 10px; font-size: 11px; font-weight: bold; cursor: pointer;
-            transition: 0.2s; flex: 1 1 calc(24% - 8px); text-align: center; min-width: 65px;
-        }
+        .download-btn-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 15px; }
 
-        /* 檔案清單樣式 */
+        .dl-pill { 
+            background: #000; color: #fff; border: 2px solid #000; border-radius: 30px; 
+            padding: 12px 20px; font-size: 15px; font-weight: bold; cursor: pointer;
+            transition: 0.2s; flex: 1; text-align: center; min-width: 140px;
+        }
+        .dl-pill:hover { background: #333; transform: translateY(-2px); }
+
         #file-list { display: flex; flex-direction: column; gap: 12px; }
         .file-item {
             display: flex; align-items: center; background: #fff; padding: 8px 20px;
             border: 2px solid #000; border-radius: var(--border-radius);
-            position: relative; will-change: transform, background-color;
+            position: relative;
             transition: background-color 0.2s;
         }
         .file-item.page-break { background: #fff9e6; border-color: #ffc107; }
         
-        /* 拖曳視覺回饋 */
-        .file-item.dragging { opacity: 0.3; background-color: #eee !important; border-style: dashed; }
-        .file-item.drag-over { background-color: #dee2e6 !important; border-width: 3px; transform: scale(1.02); }
-
         .drag-handle { padding: 10px 15px 10px 0; color: #999; display: flex; flex-direction: column; gap: 3px; cursor: move; touch-action: none; }
         .drag-handle div { width: 18px; height: 2px; background: #000; border-radius: 2px; }
         
@@ -59,18 +54,21 @@
         .file-name { flex-grow: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 15px; font-size: 14px; font-weight: bold; }
         .remove-btn { background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 
-        /* 彈窗與放大 */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 30px; border-radius: 20px; width: 85%; max-width: 400px; border: 3px solid #000; }
-        #zoomOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; }
-        #zoomOverlay img { max-width: 90%; max-height: 90%; border: 4px solid #fff; border-radius: 10px; }
+        #zoomOverlay { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; 
+        }
+        #zoomOverlay img { 
+            max-width: 92%; max-height: 92%; border: 6px solid #fff; border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
 
         .config-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .config-input-group label { flex: 1; font-weight: bold; font-size: 14px; }
         .pretty-input { width: 70px; padding: 8px; border: 2px solid #000; border-radius: 10px; text-align: center; font-weight: bold; }
-        #limitHint { font-size: 11px; color: #666; font-weight: bold; margin-bottom: 15px; text-align: right; }
 
-        /* 合併詳細資料 - Pinterest 風格兩欄並排卡片 */
         #detailSection summary {
             font-size: 1.2rem; font-weight: bold; text-align: center; padding: 12px; cursor: pointer; list-style: none;
         }
@@ -92,20 +90,24 @@
         .page-header {
             background: #000; 
             color: #fff; 
-            padding: 9px 15px; 
+            padding: 10px 15px; 
             font-weight: bold; 
             font-size: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
+        .page-header-buttons {
+            display: flex;
+            gap: 8px;
+        }
         .page-header button {
             background: rgba(255,255,255,0.25);
             color: white;
             border: none;
             border-radius: 9999px;
-            padding: 3px 12px;
-            font-size: 12px;
+            padding: 4px 12px;
+            font-size: 13px;
             font-weight: bold;
             cursor: pointer;
             display: flex;
@@ -114,7 +116,7 @@
             transition: 0.2s;
         }
         .page-header button:hover {
-            background: rgba(255,255,255,0.4);
+            background: rgba(255,255,255,0.45);
         }
         .files-compact {
             padding: 12px;
@@ -132,14 +134,8 @@
             white-space: normal;
             word-break: break-word;
             line-height: 1.3;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            min-width: 115px;
-            flex: 0 1 auto;
         }
 
-        /* 排序選單 */
         #sortBar {
             display: none;
             margin-bottom: 15px;
@@ -164,7 +160,6 @@
         <button id="nextBtn" class="btn-base" disabled>下一步 ➔</button>
     </div>
 
-    <!-- 新增：排序選單（有檔案時顯示） -->
     <div id="sortBar">
         <span style="font-weight:bold; white-space:nowrap;">排序方式：</span>
         <select id="sortSelect" style="flex:1; padding:8px; border:2px solid #000; border-radius:10px; font-weight:bold; background:white;" onchange="applySort()">
@@ -175,20 +170,20 @@
 
     <div class="final-actions" id="downloadArea">
         <h3 style="text-align:center; margin:0 0 10px 0;">✨ 排版已完成</h3>
-        <p style="font-size: 12px; color: #666; text-align: center; margin-bottom: 15px;">iOS 若點擊一鍵下載無反應，請改用分頁按鈕</p>
         
         <label>檔案命名：</label>
         <input type="text" id="fileNameInput">
         
-        <button id="downloadAllBtn" class="btn-base" style="background:#000; color:#fff; width:100%; margin-bottom: 15px;" onclick="downloadAll()">📥 一鍵下載所有圖片</button>
-        
-        <div style="border-top: 1px solid #eee; padding-top: 15px;">
-            <label style="font-size: 13px; color: #888;">分頁下載 (保險方案)：</label>
-            <div class="download-btn-group" id="downloadButtons"></div>
+        <div class="download-btn-group">
+            <div class="dl-pill" onclick="downloadAll()">📥 一鍵下載所有圖片</div>
+            <div class="dl-pill" id="zipBtn" onclick="downloadAsZip()">📦 下載 ZIP 壓縮檔</div>
         </div>
+        
+        <p style="font-size: 12px; color: #666; text-align: center; margin-top: 15px;">
+            ZIP 檔會包含所有排版完成的圖片（推薦使用）
+        </p>
     </div>
 
-    <!-- 折疊的合併詳細資料欄位 -->
     <details id="detailSection" style="display:none; margin-bottom:30px; padding:25px; border:3px solid #000; border-radius:20px; background:#fff;">
         <summary>📋 合併詳細資料（點擊展開）</summary>
         <div id="pageDetails"></div>
@@ -203,17 +198,21 @@
         <div class="config-input-group">
             <label>紙張大小</label>
             <select id="paperSize" style="border:2px solid #000; padding:8px; border-radius:10px; font-weight:bold; background:white;">
-                <option value="a4">A4</option><option value="a3">A3</option><option value="b4">B4</option><option value="b5">B5</option>
+                <option value="a4">A4</option>
+                <option value="a3">A3</option>
+                <option value="b4">B4</option>
+                <option value="b5">B5</option>
             </select>
         </div>
         <div class="config-input-group"><label>上下留白 (cm)</label><input type="number" id="vMargin" class="pretty-input" value="1.0" step="0.1"></div>
         <div class="config-input-group"><label>左右留白 (cm)</label><input type="number" id="hMargin" class="pretty-input" value="1.0" step="0.1"></div>
-        <p id="limitHint"></p>
         <button class="btn-base" style="background:#000; color:#fff; width:100%;" onclick="startProcessing()">開始合併排版 ➔</button>
     </div>
 </div>
 
-<div id="zoomOverlay" onclick="this.style.display='none'"><img id="zoomImg"></div>
+<div id="zoomOverlay" onclick="this.style.display='none'">
+    <img id="zoomImg">
+</div>
 
 <script>
     let imageArray = [];
@@ -222,7 +221,6 @@
     let uploadCounter = 0;
     const paperSpecs = { a4: { w: 210, h: 297 }, a3: { w: 297, h: 420 }, b4: { w: 250, h: 353 }, b5: { w: 176, h: 250 } };
 
-    // 自然排序（連續數字視為一個數字，支援中文、英文、符號）
     function naturalSort(a, b) {
         if (a === b) return 0;
         const aParts = a.match(/(\d+|\D+)/g) || [];
@@ -244,28 +242,17 @@
 
     function resetApp() { 
         if(confirm("確定重設？")) { 
-            imageArray = []; 
-            pageGroups = []; 
-            generatedImages = []; 
-            uploadCounter = 0;
-            renderList(); 
-            hideDownloadArea(); 
+            imageArray = []; pageGroups = []; generatedImages = []; uploadCounter = 0;
+            renderList(); hideDownloadArea(); 
         } 
     }
     function hideDownloadArea() { 
         document.getElementById('downloadArea').style.display = 'none'; 
-        const detailSection = document.getElementById('detailSection');
-        if (detailSection) detailSection.style.display = 'none';
+        document.getElementById('detailSection').style.display = 'none';
     }
 
-    // 新增強制換頁
     function addPageBreak() {
-        imageArray.push({
-            name: '--- 強制換頁 ---',
-            src: '',
-            isPageBreak: true,
-            uploadIndex: uploadCounter++
-        });
+        imageArray.push({ name: '--- 強制換頁 ---', src: '', isPageBreak: true, uploadIndex: uploadCounter++ });
         renderList();
         hideDownloadArea();
     }
@@ -315,20 +302,19 @@
             list.appendChild(div);
         });
 
-        // 顯示/隱藏排序選單
-        const sortBar = document.getElementById('sortBar');
-        sortBar.style.display = imageArray.length > 0 ? 'flex' : 'none';
-
+        document.getElementById('sortBar').style.display = imageArray.length > 0 ? 'flex' : 'none';
         document.getElementById('nextBtn').disabled = imageArray.length === 0;
     }
 
-    function removeItem(index) { imageArray.splice(index, 1); renderList(); hideDownloadArea(); }
+    function removeItem(index) { 
+        imageArray.splice(index, 1); 
+        renderList(); 
+        hideDownloadArea(); 
+    }
 
-    // --- 高性能拖曳排序 (iOS 支援) ---
     let dragSrcIndex = null, currentOverIndex = null;
     function setupSortable(el) {
         const handle = el.querySelector('.drag-handle');
-        
         const startDrag = () => { dragSrcIndex = parseInt(el.dataset.index); el.classList.add('dragging'); };
         const endDrag = () => { 
             if (dragSrcIndex !== null && currentOverIndex !== null && dragSrcIndex !== currentOverIndex) {
@@ -358,23 +344,21 @@
 
         el.draggable = true;
         el.ondragstart = startDrag;
-        el.ondragover = (e) => {
-            e.preventDefault();
-            const targetItem = e.target.closest('.file-item');
-            if (targetItem) targetItem.classList.add('drag-over');
-        };
-        el.ondragleave = (e) => {
-            const targetItem = e.target.closest('.file-item');
-            if (targetItem) targetItem.classList.remove('drag-over');
-        };
+        el.ondragover = (e) => { e.preventDefault(); };
         el.ondrop = (e) => { currentOverIndex = parseInt(el.dataset.index); };
         el.ondragend = endDrag;
     }
 
-    function zoom(e, src) { e.stopPropagation(); document.getElementById('zoomImg').src = src; document.getElementById('zoomOverlay').style.display = 'flex'; }
-    document.getElementById('nextBtn').onclick = () => { document.getElementById('configModal').style.display = 'flex'; };
+    function zoom(e, src) { 
+        e.stopPropagation(); 
+        document.getElementById('zoomImg').src = src; 
+        document.getElementById('zoomOverlay').style.display = 'flex'; 
+    }
 
-    // 排序功能
+    document.getElementById('nextBtn').onclick = () => { 
+        document.getElementById('configModal').style.display = 'flex'; 
+    };
+
     function applySort() {
         const mode = document.getElementById('sortSelect').value;
         if (mode === 'upload') {
@@ -391,7 +375,7 @@
         hideDownloadArea();
     }
 
-    // 單頁下載功能
+    // 單頁下載
     function downloadPage(index) {
         if (!generatedImages[index]) return;
         const name = document.getElementById('fileNameInput').value || '匯出';
@@ -403,7 +387,34 @@
         document.body.removeChild(a);
     }
 
-    // --- 排版處理與下載 ---
+    // 預覽單頁
+    function previewPage(index) {
+        if (!generatedImages[index]) return;
+        document.getElementById('zoomImg').src = generatedImages[index];
+        document.getElementById('zoomOverlay').style.display = 'flex';
+    }
+
+    // ZIP 下載
+    async function downloadAsZip() {
+        if (!generatedImages || generatedImages.length === 0) return;
+        const zip = new JSZip();
+        const baseName = document.getElementById('fileNameInput').value.trim() || '合併圖片匯出';
+        
+        for (let i = 0; i < generatedImages.length; i++) {
+            const base64 = generatedImages[i].split(',')[1];
+            zip.file(`${baseName}_${i+1}.png`, base64, {base64: true});
+        }
+
+        const content = await zip.generateAsync({type: "blob"});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = `${baseName}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+    }
+
     async function startProcessing() {
         const spec = paperSpecs[document.getElementById('paperSize').value];
         const vM = parseFloat(document.getElementById('vMargin').value) * 10;
@@ -414,6 +425,7 @@
         pageGroups = [];
         let currentPageGroup = [];
         let canvas = document.createElement('canvas');
+        
         const setupCanvas = (c) => {
             c.width = (spec.w / 25.4) * 300; 
             c.height = (spec.h / 25.4) * 300;
@@ -428,7 +440,6 @@
 
         for (const item of imageArray) {
             if (item.isPageBreak) {
-                // 強制換頁
                 if (currentPageGroup.length > 0 || currentY > vM) {
                     generatedImages.push(canvas.toDataURL('image/png'));
                     pageGroups.push([...currentPageGroup]);
@@ -440,12 +451,12 @@
                 continue;
             }
 
-            // 一般圖片
             const img = await new Promise(res => { 
                 const i = new Image(); 
                 i.onload = () => res(i); 
                 i.src = item.src; 
             });
+            
             const itemH = drawWidth * (img.height / img.width);
             if (currentY + itemH > pageBottom && currentY > vM) { 
                 generatedImages.push(canvas.toDataURL('image/png'));
@@ -460,45 +471,29 @@
             currentY += itemH + gap;
         }
 
-        // 最後一頁（若有內容）
         if (currentPageGroup.length > 0) {
             generatedImages.push(canvas.toDataURL('image/png'));
             pageGroups.push([...currentPageGroup]);
         }
         
-        // 更新分頁按鈕
-        const btnContainer = document.getElementById('downloadButtons');
-        btnContainer.innerHTML = '';
-        generatedImages.forEach((data, i) => {
-            const btn = document.createElement('div');
-            btn.className = 'dl-pill';
-            btn.innerText = `第 ${i+1} 頁`;
-            btn.onclick = () => {
-                const a = document.createElement('a');
-                a.download = `${document.getElementById('fileNameInput').value || '匯出'}_${i+1}.png`;
-                a.href = data; 
-                a.click();
-            };
-            btnContainer.appendChild(btn);
-        });
-
-        // 顯示合併詳細資料（兩欄並排 + file-pill 初始同寬、超長換行變寬）
+        // 更新詳細資料（新增預覽與下載按鈕）
         const detailSection = document.getElementById('detailSection');
-        if (detailSection) {
-            detailSection.style.display = 'block';
-            const pageDetailsEl = document.getElementById('pageDetails');
-            pageDetailsEl.innerHTML = pageGroups.map((group, pageIndex) => `
-                <div class="page-block">
-                    <div class="page-header">
-                        <span>第 ${pageIndex + 1} 頁</span>
+        detailSection.style.display = 'block';
+        const pageDetailsEl = document.getElementById('pageDetails');
+        pageDetailsEl.innerHTML = pageGroups.map((group, pageIndex) => `
+            <div class="page-block">
+                <div class="page-header">
+                    <span>第 ${pageIndex + 1} 頁</span>
+                    <div class="page-header-buttons">
+                        <button onclick="previewPage(${pageIndex})">👁️ 預覽</button>
                         <button onclick="downloadPage(${pageIndex})">📥 下載</button>
                     </div>
-                    <div class="files-compact">
-                        ${group.map((name) => `<div class="file-pill">📄 ${name}</div>`).join('')}
-                    </div>
                 </div>
-            `).join('');
-        }
+                <div class="files-compact">
+                    ${group.map((name) => `<div class="file-pill">📄 ${name}</div>`).join('')}
+                </div>
+            </div>
+        `).join('');
 
         document.getElementById('configModal').style.display = 'none';
         document.getElementById('downloadArea').style.display = 'block';
