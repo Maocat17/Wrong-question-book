@@ -56,14 +56,8 @@
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; }
         .modal-content { background: #fff; padding: 30px; border-radius: 20px; width: 85%; max-width: 400px; border: 3px solid #000; }
-        #zoomOverlay { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; 
-        }
-        #zoomOverlay img { 
-            max-width: 92%; max-height: 92%; border: 6px solid #fff; border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
+        #zoomOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 3000; justify-content: center; align-items: center; overflow: hidden;touch-action: none; }
+        #zoomOverlay img { max-width: 95%; max-height: 95vh; border: 6px solid #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);object-fit: contain; }
 
         .config-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
         .config-input-group label { flex: 1; font-weight: bold; font-size: 14px; }
@@ -192,6 +186,13 @@
     <div id="file-list"></div>
 </div>
 
+<div id="uploadProgress" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:2500; justify-content:center; align-items:center; flex-direction:column; color:white; font-size:18px; gap:20px;">
+    <div>正在上傳 <span id="uploadCount">0</span>/<span id="totalCount">0</span></div>
+    <div style="width:260px;height:10px;background:#444;border-radius:999px;overflow:hidden;">
+        <div id="uploadBar" style="width:0%;height:100%;background:#17a2b8;transition:width 0.4s ease;"></div>
+    </div>
+</div>
+
 <div id="configModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0">排版設定</h3>
@@ -219,6 +220,8 @@
     let generatedImages = [];
     let pageGroups = [];
     let uploadCounter = 0;
+    let isProcessed = false;
+    let lastProcessedHash = '';
     const paperSpecs = { a4: { w: 210, h: 297 }, a3: { w: 297, h: 420 }, b4: { w: 250, h: 353 }, b5: { w: 176, h: 250 } };
 
     function naturalSort(a, b) {
@@ -242,7 +245,7 @@
 
     function resetApp() { 
         if(confirm("確定重設？")) { 
-            imageArray = []; pageGroups = []; generatedImages = []; uploadCounter = 0;
+            imageArray = []; pageGroups = []; generatedImages = []; uploadCounter = 0; isProcessed = false; lastProcessedHash = '';
             renderList(); hideDownloadArea(); 
         } 
     }
@@ -257,27 +260,52 @@
         hideDownloadArea();
     }
 
-    document.getElementById('fileInput').onchange = (e) => {
-        Array.from(e.target.files).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (ev) => { 
-                imageArray.push({ 
-                    name: file.name, 
-                    src: ev.target.result,
-                    isPageBreak: false,
-                    uploadIndex: uploadCounter++
-                }); 
-                renderList(); 
-                hideDownloadArea();
-            };
-            reader.readAsDataURL(file);
-        });
+    // 【原本的 onchange 整個刪除，替換成下面這段】
+    document.getElementById('fileInput').onchange = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        const progress = document.getElementById('uploadProgress');
+        const countEl = document.getElementById('uploadCount');
+        const totalEl = document.getElementById('totalCount');
+        const bar = document.getElementById('uploadBar');
+
+        progress.style.display = 'flex';
+        totalEl.textContent = files.length;
+        let completed = 0;
+
+        for (const file of files) {
+            countEl.textContent = ++completed;
+            bar.style.width = Math.round((completed / files.length) * 100) + '%';
+
+            await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    imageArray.push({ 
+                        name: file.name, 
+                        src: ev.target.result,
+                        isPageBreak: false,
+                        uploadIndex: uploadCounter++
+                    });
+                    resolve();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        renderList();
+        hideDownloadArea();
+        progress.style.display = 'none';
         e.target.value = "";
     };
 
-    function renderList() {
+function renderList() {
+    if (window.renderTimeout) clearTimeout(window.renderTimeout);
+    
+    window.renderTimeout = setTimeout(() => {
         const list = document.getElementById('file-list');
         list.innerHTML = '';
+        
         imageArray.forEach((item, i) => {
             const div = document.createElement('div');
             div.className = `file-item ${item.isPageBreak ? 'page-break' : ''}`;
@@ -303,9 +331,35 @@
         });
 
         document.getElementById('sortBar').style.display = imageArray.length > 0 ? 'flex' : 'none';
-        document.getElementById('nextBtn').disabled = imageArray.length === 0;
+        updateNextButtonState();
+    }, 16); 
+}
+
+    function hasRealImages() {
+        return imageArray.some(item => !item.isPageBreak);
+    }
+    
+    function getArrayHash() {
+        return JSON.stringify(imageArray.map(item => ({
+            name: item.name,
+            isPageBreak: !!item.isPageBreak,
+            uploadIndex: item.uploadIndex
+        })));
     }
 
+    function updateNextButtonState() {
+        const nextBtn = document.getElementById('nextBtn');
+        if (!hasRealImages()) {
+            nextBtn.disabled = true;
+            return;
+        }
+        if (isProcessed) {
+            nextBtn.disabled = (getArrayHash() === lastProcessedHash);
+        } else {
+            nextBtn.disabled = false;
+        }
+    }
+    
     function removeItem(index) { 
         imageArray.splice(index, 1); 
         renderList(); 
@@ -496,6 +550,9 @@
         `).join('');
 
         document.getElementById('configModal').style.display = 'none';
+        isProcessed = true;
+        lastProcessedHash = getArrayHash();
+        updateNextButtonState();
         document.getElementById('downloadArea').style.display = 'block';
         document.getElementById('fileNameInput').value = "合併圖片匯出";
         window.scrollTo({ top: 0, behavior: 'smooth' });
