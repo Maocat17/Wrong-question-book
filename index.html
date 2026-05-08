@@ -36,6 +36,28 @@
         }
         .dl-pill:hover { background: #333; transform: translateY(-2px); }
 
+        .quick-btns button.subject-btn {
+            background: #fff;
+            color: #17a2b8;
+            border: 2px solid #17a2b8;
+            border-radius: 9999px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-btns button.subject-btn:hover {
+            background: #17a2b8;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .quick-btns button.subject-btn:active {
+            transform: scale(0.95);
+        }
+
         #file-list { display: flex; flex-direction: column; gap: 12px; }
         .file-item {
             display: flex; align-items: center; background: #fff; padding: 8px 20px;
@@ -167,6 +189,22 @@
         
         <label>檔案命名：</label>
         <input type="text" id="fileNameInput">
+
+        <!-- 新增：快速科目按鈕 -->
+        <div class="quick-btns" style="margin: 12px 0 18px 0; display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="subject-btn" data-name="國文">國文</button>
+            <button class="subject-btn" data-name="數學">數學</button>
+            <button class="subject-btn" data-name="數非">數非</button>
+            <button class="subject-btn" data-name="英文">英文</button>
+            <button class="subject-btn" data-name="自然">自然</button>
+            <button class="subject-btn" data-name="生物">生物</button>
+            <button class="subject-btn" data-name="理化">理化</button>
+            <button class="subject-btn" data-name="地科">地科</button>
+            <button class="subject-btn" data-name="社會">社會</button>
+            <button class="subject-btn" data-name="地理">地理</button>
+            <button class="subject-btn" data-name="歷史">歷史</button>
+            <button class="subject-btn" data-name="公民">公民</button>
+        </div>
         
         <div class="download-btn-group">
             <div class="dl-pill" onclick="downloadAll()">📥 一鍵下載所有圖片</div>
@@ -570,6 +608,20 @@ function renderList() {
             await new Promise(res => setTimeout(res, 400));
         }
     }
+
+    // 快速科目按鈕功能
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.subject-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const name = btn.getAttribute('data-name');
+                document.getElementById('fileNameInput').value = name;
+            
+                // 可選：點擊後輕微反饋
+                btn.style.transform = 'scale(0.9)';
+                setTimeout(() => btn.style.transform = '', 150);
+            });
+        });
+    });
 </script>
 </body>
 </html>
